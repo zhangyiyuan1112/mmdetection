@@ -60,8 +60,10 @@ class ConditionalDetrTransformerDecoder(DetrTransformerDecoder):
             with shape (1, bs, num_queries, dim). References with shape
             (bs, num_queries, 2).
         """
+        # 将object query通过MLP得到2维reference point
         reference_unsigmoid = self.ref_point_head(
             query_pos)  # [bs, num_queries, 2]
+        # 将2d参考点映射到[0,1]区间
         reference = reference_unsigmoid.sigmoid()
         reference_xy = reference[..., :2]
         intermediate = []
