@@ -68,9 +68,10 @@ class ConditionalDetrTransformerDecoder(DetrTransformerDecoder):
         reference_xy = reference[..., :2]
         intermediate = []
         for layer_id, layer in enumerate(self.layers):
-            if layer_id == 0:
+            # 处理decoder embeddings，将其投影为T
+            if layer_id == 0:  # 单标量
                 pos_transformation = 1
-            else:
+            else:  # 对角矩阵
                 pos_transformation = self.query_scale(query)
             # get sine embedding for the query reference
             ref_sine_embed = coordinate_to_encoding(coord_tensor=reference_xy)
