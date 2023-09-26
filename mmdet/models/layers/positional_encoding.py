@@ -16,6 +16,9 @@ class SinePositionalEncoding(BaseModule):
 
     See `End-to-End Object Detection with Transformers
     <https://arxiv.org/pdf/2005.12872>`_ for details.
+    Sinusoidal Positional Encoding的计算公式如下:
+        PE(pos, 2i) = sin(pos / (10000^(2i/d_model)))
+        PE(pos, 2i+1) = cos(pos / (10000^(2i/d_model)))
 
     Args:
         num_feats (int): The feature dimension for each position
@@ -82,13 +85,16 @@ class SinePositionalEncoding(BaseModule):
         dim_t = torch.arange(
             self.num_feats, dtype=torch.float32, device=mask.device)
         dim_t = self.temperature**(2 * (dim_t // 2) / self.num_feats)
-        pos_x = x_embed[:, :, :, None] / dim_t
+        # x_embed添加1个维度，广播后与dim_t相除
+        pos_x = x_embed[:, :, :, None] / dim_t  # [bs, h, w, num_feats]
         pos_y = y_embed[:, :, :, None] / dim_t
         # use `view` instead of `flatten` for dynamically exporting to ONNX
         B, H, W = mask.size()
+        # stack后的维度为[bs, h, w, num_feats, 2]
+        # view展开从最后一个维度依次向前的顺序，展开后顺序依旧为奇偶交替
         pos_x = torch.stack(
             (pos_x[:, :, :, 0::2].sin(), pos_x[:, :, :, 1::2].cos()),
-            dim=4).view(B, H, W, -1)
+            dim=4).view(B, H, W, -1)  # [bs, h, w, num_feats*2]
         pos_y = torch.stack(
             (pos_y[:, :, :, 0::2].sin(), pos_y[:, :, :, 1::2].cos()),
             dim=4).view(B, H, W, -1)
@@ -206,7 +212,7 @@ class SinePositionalEncoding3D(SinePositionalEncoding):
             pos (Tensor): Returned position embedding with shape
                 [bs, num_feats*2, h, w].
         """
-        assert mask.dim() == 4,\
+        assert mask.dim() == 4, \
             f'{mask.shape} should be a 4-dimensional Tensor,' \
             f' got {mask.dim()}-dimensional Tensor instead '
         # For convenience of exporting to ONNX, it's required to convert

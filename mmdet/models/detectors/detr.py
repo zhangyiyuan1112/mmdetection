@@ -32,6 +32,7 @@ class DETR(DetectionTransformer):
         # NOTE The embed_dims is typically passed from the inside out.
         # For example in DETR, The embed_dims is passed as
         # self_attn -> the first encoder layer -> encoder -> detector.
+        # self.query_embedding.weight for learnable object query
         self.query_embedding = nn.Embedding(self.num_queries, self.embed_dims)
 
         num_feats = self.positional_encoding.num_feats
@@ -93,6 +94,7 @@ class DETR(DetectionTransformer):
         # NOTE following the official DETR repo, non-zero values represent
         # ignored positions, while zero values mean valid positions.
 
+        # 将mask调整到与特征图大小一致
         masks = F.interpolate(
             masks.unsqueeze(1), size=feat.shape[-2:]).to(torch.bool).squeeze(1)
         # [batch_size, embed_dim, h, w]
@@ -164,10 +166,13 @@ class DETR(DetectionTransformer):
               support 'two stage' or 'query selection' strategies.
         """
 
+        # num_feat_points = height * width
         batch_size = memory.size(0)  # (bs, num_feat_points, dim)
+        # object query
         query_pos = self.query_embedding.weight
         # (num_queries, dim) -> (bs, num_queries, dim)
         query_pos = query_pos.unsqueeze(0).repeat(batch_size, 1, 1)
+        # first decoder query input
         query = torch.zeros_like(query_pos)
 
         decoder_inputs_dict = dict(
